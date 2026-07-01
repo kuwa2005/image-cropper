@@ -325,6 +325,13 @@
       white-space: nowrap;
     }
 
+    .toolbar-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: var(--space-3) 0;
+      grid-column: 1 / -1;
+    }
+
     .modal-overlay {
       display: none;
       position: fixed;
@@ -395,6 +402,17 @@
       color: var(--accent);
     }
 
+    .preset-btn--accent {
+      border-color: var(--accent);
+      background: var(--accent-subtle);
+      color: var(--accent);
+    }
+
+    .preset-btn--accent:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
     .custom-ratio {
       display: flex;
       align-items: center;
@@ -454,6 +472,50 @@
       display: flex;
       align-items: center;
       gap: var(--space-2);
+    }
+
+    .copy-size-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    .resize-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .resize-group input {
+      width: 60px;
+      height: 32px;
+      padding: 0 var(--space-2);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      color: var(--text);
+      text-align: center;
+    }
+
+    [data-theme='dark'] .resize-group input {
+      background: #0d1117;
+    }
+
+    .resize-group input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .resize-group span {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text);
+    }
+
+    .action-spacer {
+      width: var(--space-4);
     }
 
     .user-preset-delete {
@@ -542,7 +604,8 @@
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: var(--space-2);
+      justify-content: center;
+      gap: var(--space-4);
     }
 
     .download-dropdown {
@@ -624,7 +687,8 @@
         gap: var(--space-2);
       }
 
-      .toolbar-section-title {
+      .toolbar-section-title,
+      .toolbar-label {
         text-align: left;
       }
 
@@ -640,21 +704,45 @@
         flex-wrap: wrap;
       }
 
+      .canvas-wrapper {
+        display: block;
+        width: 100%;
+      }
+
+      .canvas-wrapper canvas {
+        width: 100%;
+        height: auto;
+      }
+
       .action-bar {
         flex-direction: column;
         align-items: stretch;
       }
 
-      .download-dropdown {
-        display: flex;
+      .resize-group {
+        flex-wrap: wrap;
       }
 
-      .download-dropdown .btn {
+      .download-dropdown {
+        display: flex;
+        width: 100%;
+      }
+
+      .download-dropdown #btn-download {
         flex: 1;
+      }
+
+      .download-dropdown #btn-download-arrow {
+        flex: none;
       }
 
       #btn-copy {
         width: 100%;
+      }
+
+      .save-input {
+        flex: 1;
+        width: auto;
       }
     }
   </style>
@@ -714,9 +802,10 @@
             <span>x</span>
             <input type="number" id="ratio-h" min="1" max="10000" value="670" placeholder="高さ">
             <span class="custom-ratio-unit">px</span>
-            <button class="preset-btn" id="apply-custom">設定</button>
+            <button class="preset-btn preset-btn--accent" id="apply-custom">設定</button>
             <span class="toolbar-hint">※縦横比率として扱われます</span>
           </div>
+          <hr class="toolbar-divider">
           <span class="toolbar-label">プリセット名</span>
           <div class="preset-save-row">
             <input type="text" class="save-input" id="save-name" placeholder="例: ブログ用">
@@ -738,6 +827,15 @@
       </div>
 
       <div class="action-bar" id="action-bar">
+        <div class="resize-group">
+          <span class="toolbar-label">リサイズ</span>
+          <button class="preset-btn active" id="btn-resize-none">なし</button>
+          <input type="number" id="copy-w" min="1" max="10000" value="1280" placeholder="幅" disabled style="display:none;">
+          <span style="display:none;">x</span>
+          <input type="number" id="copy-h" min="1" max="10000" value="720" placeholder="高さ" disabled style="display:none;">
+          <span class="custom-ratio-unit copy-size-unit" style="display:none;">px</span>
+        </div>
+        <div class="action-spacer"></div>
         <div class="download-dropdown">
           <button class="btn btn-primary" id="btn-download">ダウンロード</button>
           <button class="btn btn-primary btn-dropdown-arrow" id="btn-download-arrow">▼</button>
@@ -747,7 +845,7 @@
             <div class="download-dropdown-item" data-format="webp">WebP</div>
           </div>
         </div>
-        <button class="btn btn-outline" id="btn-copy">クリップボードにコピー</button>
+        <button class="btn btn-primary" id="btn-copy">クリップボードにコピー</button>
       </div>
       <p style="text-align:center; font-size:var(--text-xs); color:var(--text); margin-top:var(--space-4);">画像はサーバーに送信されず、すべてブラウザ内で処理されます。 <a href="https://github.com/kuwa2005/image-cropper" target="_blank" rel="noopener noreferrer" style="color:var(--text); opacity:0.5;">GitHub</a></p>
     </div>
@@ -784,6 +882,10 @@
       var ratioWInput = document.getElementById('ratio-w');
       var ratioHInput = document.getElementById('ratio-h');
       var applyCustom = document.getElementById('apply-custom');
+      var copyWInput = document.getElementById('copy-w');
+      var copyHInput = document.getElementById('copy-h');
+      var btnResizeNone = document.getElementById('btn-resize-none');
+      var resizeEnabled = false;
       var toastEl = document.getElementById('toast');
       var themeToggle = document.getElementById('theme-toggle');
       var saveNameInput = document.getElementById('save-name');
@@ -970,7 +1072,13 @@
       }
 
       function initCanvas() {
-        var maxW = Math.min(window.innerWidth - 32, 800);
+        var container = canvasWrapper.parentElement;
+        var containerWidth = container ? container.clientWidth : window.innerWidth;
+        var computedStyle = window.getComputedStyle(container || document.body);
+        var paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+        var paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+        var availableWidth = containerWidth - paddingLeft - paddingRight;
+        var maxW = Math.min(availableWidth, 800);
         var maxH = window.innerHeight - 300;
         var scale = Math.min(maxW / image.width, maxH / image.height, 1);
         canvasScale = scale;
@@ -1036,11 +1144,14 @@
         var sw = cropW / canvasScale;
         var sh = cropH / canvasScale;
 
+        var targetW = resizeEnabled ? (parseInt(copyWInput.value, 10) || sw) : sw;
+        var targetH = resizeEnabled ? (parseInt(copyHInput.value, 10) || sh) : sh;
+
         var outCanvas = document.createElement('canvas');
-        outCanvas.width = sw;
-        outCanvas.height = sh;
+        outCanvas.width = targetW;
+        outCanvas.height = targetH;
         var outCtx = outCanvas.getContext('2d');
-        outCtx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+        outCtx.drawImage(image, sx, sy, sw, sh, 0, 0, targetW, targetH);
 
         var format = currentFormat;
         var mimeType = 'image/' + format;
@@ -1070,17 +1181,21 @@
         var sw = cropW / canvasScale;
         var sh = cropH / canvasScale;
 
+        var targetW = resizeEnabled ? (parseInt(copyWInput.value, 10) || sw) : sw;
+        var targetH = resizeEnabled ? (parseInt(copyHInput.value, 10) || sh) : sh;
+
         var outCanvas = document.createElement('canvas');
-        outCanvas.width = sw;
-        outCanvas.height = sh;
+        outCanvas.width = targetW;
+        outCanvas.height = targetH;
         var outCtx = outCanvas.getContext('2d');
-        outCtx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+        outCtx.drawImage(image, sx, sy, sw, sh, 0, 0, targetW, targetH);
 
         outCanvas.toBlob(function(blob) {
           if (navigator.clipboard && navigator.clipboard.write) {
             var item = new ClipboardItem({ 'image/png': blob });
             navigator.clipboard.write([item]).then(function() {
-              showToast('クリップボードにコピーしました');
+              var msg = resizeEnabled ? targetW + 'x' + targetH + ' でコピーしました' : 'クリップボードにコピーしました';
+              showToast(msg);
             }).catch(function() {
               showToast('コピーに失敗しました');
             });
@@ -1198,6 +1313,23 @@
         downloadDropdown.classList.remove('open');
       });
 
+      btnResizeNone.addEventListener('click', function() {
+        resizeEnabled = !resizeEnabled;
+        btnResizeNone.classList.toggle('active', resizeEnabled);
+        copyWInput.disabled = !resizeEnabled;
+        copyHInput.disabled = !resizeEnabled;
+        copyWInput.style.display = resizeEnabled ? '' : 'none';
+        copyHInput.style.display = resizeEnabled ? '' : 'none';
+        copyWInput.nextElementSibling.style.display = resizeEnabled ? '' : 'none';
+        copyHInput.nextElementSibling.style.display = resizeEnabled ? '' : 'none';
+        document.querySelector('.copy-size-unit').style.display = resizeEnabled ? '' : 'none';
+        if (resizeEnabled) {
+          btnResizeNone.textContent = 'あり';
+        } else {
+          btnResizeNone.textContent = 'なし';
+        }
+      });
+
       btnCopy.addEventListener('click', copyToClipboard);
       themeToggle.addEventListener('click', toggleTheme);
       btnSave.addEventListener('click', saveCurrentPreset);
@@ -1240,23 +1372,62 @@
           if (resizeHandle === 'br') {
             newW = startCropW + dx;
             newH = newW / ratio;
+            if (newX + newW > canvasEl.width) {
+              newW = canvasEl.width - newX;
+              newH = newW / ratio;
+            }
+            if (newY + newH > canvasEl.height) {
+              newH = canvasEl.height - newY;
+              newW = newH * ratio;
+            }
           } else if (resizeHandle === 'bl') {
             newW = startCropW - dx;
             newH = newW / ratio;
             newX = startCropX + (startCropW - newW);
+            if (newX < 0) {
+              newX = 0;
+              newW = startCropX + startCropW;
+              newH = newW / ratio;
+            }
+            if (newY + newH > canvasEl.height) {
+              newH = canvasEl.height - newY;
+              newW = newH * ratio;
+              newX = startCropX + startCropW - newW;
+            }
           } else if (resizeHandle === 'tr') {
             newW = startCropW + dx;
             newH = newW / ratio;
             newY = startCropY + (startCropH - newH);
+            if (newX + newW > canvasEl.width) {
+              newW = canvasEl.width - newX;
+              newH = newW / ratio;
+              newY = startCropY + startCropH - newH;
+            }
+            if (newY < 0) {
+              newY = 0;
+              newH = startCropY + startCropH;
+              newW = newH * ratio;
+            }
           } else if (resizeHandle === 'tl') {
             newW = startCropW - dx;
             newH = newW / ratio;
             newX = startCropX + (startCropW - newW);
             newY = startCropY + (startCropH - newH);
+            if (newX < 0) {
+              newX = 0;
+              newW = startCropX + startCropW;
+              newH = newW / ratio;
+              newY = startCropY + startCropH - newH;
+            }
+            if (newY < 0) {
+              newY = 0;
+              newH = startCropY + startCropH;
+              newW = newH * ratio;
+              newX = startCropX + startCropW - newW;
+            }
           }
 
-          if (newW >= 30 && newH >= 30 && newX >= 0 && newY >= 0 &&
-              newX + newW <= canvasEl.width && newY + newH <= canvasEl.height) {
+          if (newW >= 30 && newH >= 30) {
             cropW = newW;
             cropH = newH;
             cropX = newX;
@@ -1310,23 +1481,62 @@
           if (resizeHandle === 'br') {
             newW = startCropW + dx;
             newH = newW / ratio;
+            if (newX + newW > canvasEl.width) {
+              newW = canvasEl.width - newX;
+              newH = newW / ratio;
+            }
+            if (newY + newH > canvasEl.height) {
+              newH = canvasEl.height - newY;
+              newW = newH * ratio;
+            }
           } else if (resizeHandle === 'bl') {
             newW = startCropW - dx;
             newH = newW / ratio;
             newX = startCropX + (startCropW - newW);
+            if (newX < 0) {
+              newX = 0;
+              newW = startCropX + startCropW;
+              newH = newW / ratio;
+            }
+            if (newY + newH > canvasEl.height) {
+              newH = canvasEl.height - newY;
+              newW = newH * ratio;
+              newX = startCropX + startCropW - newW;
+            }
           } else if (resizeHandle === 'tr') {
             newW = startCropW + dx;
             newH = newW / ratio;
             newY = startCropY + (startCropH - newH);
+            if (newX + newW > canvasEl.width) {
+              newW = canvasEl.width - newX;
+              newH = newW / ratio;
+              newY = startCropY + startCropH - newH;
+            }
+            if (newY < 0) {
+              newY = 0;
+              newH = startCropY + startCropH;
+              newW = newH * ratio;
+            }
           } else if (resizeHandle === 'tl') {
             newW = startCropW - dx;
             newH = newW / ratio;
             newX = startCropX + (startCropW - newW);
             newY = startCropY + (startCropH - newH);
+            if (newX < 0) {
+              newX = 0;
+              newW = startCropX + startCropW;
+              newH = newW / ratio;
+              newY = startCropY + startCropH - newH;
+            }
+            if (newY < 0) {
+              newY = 0;
+              newH = startCropY + startCropH;
+              newW = newH * ratio;
+              newX = startCropX + startCropW - newW;
+            }
           }
 
-          if (newW >= 30 && newH >= 30 && newX >= 0 && newY >= 0 &&
-              newX + newW <= canvasEl.width && newY + newH <= canvasEl.height) {
+          if (newW >= 30 && newH >= 30) {
             cropW = newW;
             cropH = newH;
             cropX = newX;
@@ -1367,6 +1577,24 @@
           });
         }
       }
+
+      var savedCopySize = getCookie('copy_size');
+      if (savedCopySize) {
+        var parts = savedCopySize.split('x');
+        var w = parseInt(parts[0], 10);
+        var h = parseInt(parts[1], 10);
+        if (w && h) {
+          copyWInput.value = w;
+          copyHInput.value = h;
+        }
+      }
+
+      copyWInput.addEventListener('change', function() {
+        setCookie('copy_size', copyWInput.value + 'x' + copyHInput.value, 365);
+      });
+      copyHInput.addEventListener('change', function() {
+        setCookie('copy_size', copyWInput.value + 'x' + copyHInput.value, 365);
+      });
     })();
   </script>
 </body>
