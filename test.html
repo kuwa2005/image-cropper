@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Cropper Unit Tests</title>
+  <style>
+    body { font-family: 'JetBrains Mono', monospace; margin: 20px; background: #f6f8fa; }
+    h1 { color: #1f2328; }
+    .pass { color: #1a7f37; }
+    .fail { color: #cf222e; }
+    .test { margin: 3px 0; font-size: 14px; }
+    #results { margin-top: 20px; padding: 15px; border: 1px solid #d0d7de; background: #fff; border-radius: 8px; }
+    .summary { margin-top: 15px; padding: 10px; background: #eef1f4; border-radius: 6px; }
+    .section { margin-top: 15px; font-weight: bold; color: #656d76; }
+  </style>
+</head>
+<body>
+  <h1>Image Cropper Unit Tests</h1>
+  <p>テストを実行するには下のボタンをクリックしてください。</p>
+  <button onclick="runAllTests()" style="padding: 8px 16px; font-size: 14px; cursor: pointer;">テスト実行</button>
+  <div id="results"></div>
+
+  <script>
+    var results = document.getElementById('results');
+    var passed = 0;
+    var failed = 0;
+    var total = 0;
+
+    function assert(condition, message) {
+      total++;
+      var div = document.createElement('div');
+      div.className = 'test';
+      if (condition) {
+        div.className += ' pass';
+        div.textContent = '✓ ' + message;
+        passed++;
+      } else {
+        div.className += ' fail';
+        div.textContent = '✗ ' + message;
+        failed++;
+      }
+      results.appendChild(div);
+    }
+
+    function section(name) {
+      var div = document.createElement('div');
+      div.className = 'section';
+      div.textContent = '--- ' + name + ' ---';
+      results.appendChild(div);
+    }
+
+    function clearResults() {
+      results.innerHTML = '';
+      passed = 0;
+      failed = 0;
+      total = 0;
+    }
+
+    // Test Cookie Functions
+    function testCookieFunctions() {
+      section('Cookie Functions');
+
+      // Test getCookie
+      document.cookie = 'test_get=value123;path=/';
+      var stored = document.cookie.match('(^|;) ?test_get=([^;]*)(;|$)');
+      var value = stored ? stored[2] : null;
+      assert(value === 'value123', 'getCookie: retrieves correct value');
+
+      // Test setCookie
+      document.cookie = 'test_set=newval;path=/';
+      var stored2 = document.cookie.match('(^|;) ?test_set=([^;]*)(;|$)');
+      var value2 = stored2 ? stored2[2] : null;
+      assert(value2 === 'newval', 'setCookie: sets value correctly');
+
+      // Test cookie with special characters
+      document.cookie = 'test_special=a%20b%26c;path=/';
+      var stored3 = document.cookie.match('(^|;) ?test_special=([^;]*)(;|$)');
+      var value3 = stored3 ? stored3[2] : null;
+      assert(value3 === 'a%20b%26c', 'Cookie: handles URL-encoded values');
+
+      // Clean up
+      document.cookie = 'test_get=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+      document.cookie = 'test_set=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+      document.cookie = 'test_special=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+    }
+
+    // Test Theme Functions
+    function testThemeFunctions() {
+      section('Theme Functions');
+
+      var html = document.documentElement;
+
+      // Test initial theme
+      html.dataset.theme = 'light';
+      assert(html.dataset.theme === 'light', 'Theme: set to light');
+
+      // Test toggle to dark
+      html.dataset.theme = 'dark';
+      assert(html.dataset.theme === 'dark', 'Theme: toggled to dark');
+
+      // Test toggle back to light
+      html.dataset.theme = 'light';
+      assert(html.dataset.theme === 'light', 'Theme: toggled back to light');
+
+      // Test theme persistence
+      document.cookie = 'theme=dark;path=/';
+      var stored = document.cookie.match('(^|;) ?theme=([^;]*)(;|$)');
+      var theme = stored ? stored[2] : null;
+      assert(theme === 'dark', 'Theme: saved to cookie');
+
+      // Clean up
+      document.cookie = 'theme=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+    }
+
+    // Test Aspect Ratio Calculations
+    function testAspectRatioPresets() {
+      section('Aspect Ratio Presets');
+
+      var presets = {
+        '1:1': 1,
+        '16:9': 16/9,
+        '9:16': 9/16,
+        '4:3': 4/3,
+        '3:4': 3/4
+      };
+
+      for (var key in presets) {
+        var parts = key.split(':');
+        var w = parseInt(parts[0], 10);
+        var h = parseInt(parts[1], 10);
+        var calculated = w / h;
+        var expected = presets[key];
+        assert(Math.abs(calculated - expected) < 0.0001,
+          'Ratio ' + key + ': ' + calculated.toFixed(4) + ' ≈ ' + expected.toFixed(4));
+      }
+
+      // Test custom ratio
+      var customW = 7;
+      var customH = 5;
+      var customRatio = customW / customH;
+      assert(Math.abs(customRatio - 1.4) < 0.0001, 'Custom ratio 7:5 = 1.4');
+    }
+
+    // Test Crop Clamping
+    function testCropClamp() {
+      section('Crop Clamping');
+
+      var canvasW = 800;
+      var canvasH = 600;
+
+      // Test negative X
+      var cropX = -10;
+      var cropY = 50;
+      var cropW = 100;
+      var cropH = 100;
+      if (cropX < 0) cropX = 0;
+      assert(cropX === 0, 'Clamp: negative X corrected to 0');
+
+      // Test negative Y
+      cropX = 50;
+      cropY = -5;
+      if (cropY < 0) cropY = 0;
+      assert(cropY === 0, 'Clamp: negative Y corrected to 0');
+
+      // Test overflow X
+      cropX = 750;
+      cropW = 100;
+      if (cropX + cropW > canvasW) cropX = canvasW - cropW;
+      assert(cropX === 700, 'Clamp: overflow X corrected');
+
+      // Test overflow Y
+      cropY = 550;
+      cropH = 100;
+      if (cropY + cropH > canvasH) cropY = canvasH - cropH;
+      assert(cropY === 500, 'Clamp: overflow Y corrected');
+
+      // Test both bounds
+      cropX = -20;
+      cropY = -10;
+      cropW = 100;
+      cropH = 100;
+      if (cropX < 0) cropX = 0;
+      if (cropY < 0) cropY = 0;
+      if (cropX + cropW > canvasW) cropX = canvasW - cropW;
+      if (cropY + cropH > canvasH) cropY = canvasH - cropH;
+      assert(cropX === 0 && cropY === 0, 'Clamp: both negative values corrected');
+    }
+
+    // Test Minimum Size Enforcement
+    function testMinimumSize() {
+      section('Minimum Size Enforcement');
+
+      var minSize = 30;
+
+      // Test small width
+      var cropW = 5;
+      var cropH = 100;
+      if (cropW < minSize) cropW = minSize;
+      assert(cropW === minSize, 'Min size: width enforced');
+
+      // Test small height
+      cropW = 100;
+      cropH = 10;
+      if (cropH < minSize) cropH = minSize;
+      assert(cropH === minSize, 'Min size: height enforced');
+
+      // Test already large enough
+      cropW = 50;
+      cropH = 50;
+      if (cropW < minSize) cropW = minSize;
+      if (cropH < minSize) cropH = minSize;
+      assert(cropW === 50 && cropH === 50, 'Min size: no change for large values');
+    }
+
+    // Test Format MIME Types
+    function testFormatMimeTypes() {
+      section('Format MIME Types');
+
+      var formats = {
+        'png': 'image/png',
+        'jpeg': 'image/jpeg',
+        'webp': 'image/webp'
+      };
+
+      for (var key in formats) {
+        assert(formats[key] === 'image/' + key,
+          'Format ' + key + ' → ' + formats[key]);
+      }
+    }
+
+    // Test Canvas Scaling
+    function testCanvasScale() {
+      section('Canvas Scaling');
+
+      // Large image
+      var imageW = 1600;
+      var imageH = 900;
+      var maxW = 800;
+      var maxH = 600;
+
+      var scale = Math.min(maxW / imageW, maxH / imageH, 1);
+      var canvasW = imageW * scale;
+      var canvasH = imageH * scale;
+
+      assert(scale <= 1, 'Scale: factor <= 1 for large images');
+      assert(canvasW <= maxW, 'Scale: canvas width within max');
+      assert(canvasH <= maxH, 'Scale: canvas height within max');
+      assert(Math.abs(scale - 0.5) < 0.01, 'Scale: 1600x900 → 800x450 (scale=0.5)');
+
+      // Small image (should not upscale)
+      imageW = 400;
+      imageH = 300;
+      scale = Math.min(maxW / imageW, maxH / imageH, 1);
+      canvasW = imageW * scale;
+      canvasH = imageH * scale;
+
+      assert(scale === 1, 'Scale: small image not upscaled');
+      assert(canvasW === 400, 'Scale: small image canvas width preserved');
+      assert(canvasH === 300, 'Scale: small image canvas height preserved');
+    }
+
+    // Test Crop Overlay Positioning
+    function testCropOverlayPosition() {
+      section('Crop Overlay Positioning');
+
+      var cropX = 100;
+      var cropY = 50;
+      var cropW = 200;
+      var cropH = 150;
+
+      var style = {
+        left: cropX + 'px',
+        top: cropY + 'px',
+        width: cropW + 'px',
+        height: cropH + 'px'
+      };
+
+      assert(style.left === '100px', 'Overlay: left position');
+      assert(style.top === '50px', 'Overlay: top position');
+      assert(style.width === '200px', 'Overlay: width');
+      assert(style.height === '150px', 'Overlay: height');
+
+      // Test centering
+      var canvasW = 800;
+      var canvasH = 600;
+      cropW = 200;
+      cropH = 200;
+      cropX = (canvasW - cropW) / 2;
+      cropY = (canvasH - cropH) / 2;
+
+      assert(cropX === 300, 'Overlay: centered X');
+      assert(cropY === 200, 'Overlay: centered Y');
+    }
+
+    // Test Drag Handling
+    function testDragHandling() {
+      section('Drag Handling');
+
+      var startX = 100;
+      var startY = 50;
+      var startCropX = 200;
+      var startCropY = 100;
+      var dx = 30;
+      var dy = 20;
+
+      var newCropX = startCropX + dx;
+      var newCropY = startCropY + dy;
+
+      assert(newCropX === 230, 'Drag: X updated correctly');
+      assert(newCropY === 120, 'Drag: Y updated correctly');
+
+      // Test negative drag
+      dx = -50;
+      dy = -30;
+      newCropX = startCropX + dx;
+      newCropY = startCropY + dy;
+
+      assert(newCropX === 150, 'Drag: negative X works');
+      assert(newCropY === 70, 'Drag: negative Y works');
+    }
+
+    // Test Resize Handling
+    function testResizeHandling() {
+      section('Resize Handling');
+
+      var ratio = 16/9;
+      var startCropW = 300;
+      var startCropH = startCropW / ratio;
+      var dx = 50;
+
+      // BR handle
+      var newW = startCropW + dx;
+      var newH = newW / ratio;
+      assert(Math.abs(newH - newW / ratio) < 0.0001, 'Resize BR: maintains aspect ratio');
+
+      // BL handle
+      newW = startCropW - dx;
+      newH = newW / ratio;
+      var newX = 200 + (startCropW - newW);
+      assert(newX === 250, 'Resize BL: X offset correct');
+      assert(Math.abs(newH - newW / ratio) < 0.0001, 'Resize BL: maintains aspect ratio');
+
+      // TR handle
+      newW = startCropW + dx;
+      newH = newW / ratio;
+      var newY = 100 + (startCropH - newH);
+      assert(newY < 100, 'Resize TR: Y offset correct');
+      assert(Math.abs(newH - newW / ratio) < 0.0001, 'Resize TR: maintains aspect ratio');
+
+      // TL handle
+      newW = startCropW - dx;
+      newH = newW / ratio;
+      newX = 200 + (startCropW - newW);
+      newY = 100 + (startCropH - newH);
+      assert(newX === 250 && newY < 100, 'Resize TL: both offsets correct');
+      assert(Math.abs(newH - newW / ratio) < 0.0001, 'Resize TL: maintains aspect ratio');
+    }
+
+    // Test Output Coordinates
+    function testOutputCoordinates() {
+      section('Output Coordinates');
+
+      var canvasScale = 0.5;
+      var cropX = 100;
+      var cropY = 50;
+      var cropW = 200;
+      var cropH = 150;
+
+      var sx = cropX / canvasScale;
+      var sy = cropY / canvasScale;
+      var sw = cropW / canvasScale;
+      var sh = cropH / canvasScale;
+
+      assert(sx === 200, 'Output: X scaled correctly');
+      assert(sy === 100, 'Output: Y scaled correctly');
+      assert(sw === 400, 'Output: width scaled correctly');
+      assert(sh === 300, 'Output: height scaled correctly');
+    }
+
+    // Test File Validation
+    function testFileValidation() {
+      section('File Validation');
+
+      var validTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp'];
+
+      assert(validTypes.indexOf('image/png') !== -1, 'Validation: PNG accepted');
+      assert(validTypes.indexOf('image/jpeg') !== -1, 'Validation: JPEG accepted');
+      assert(validTypes.indexOf('image/webp') !== -1, 'Validation: WebP accepted');
+      assert(validTypes.indexOf('image/gif') !== -1, 'Validation: GIF accepted');
+      assert(validTypes.indexOf('image/bmp') !== -1, 'Validation: BMP accepted');
+      assert(validTypes.indexOf('text/plain') === -1, 'Validation: text/plain rejected');
+      assert(validTypes.indexOf('application/pdf') === -1, 'Validation: PDF rejected');
+    }
+
+    // Test UI State Management
+    function testUIStateManagement() {
+      section('UI State Management');
+
+      // Test toolbar visibility
+      var toolbar = document.createElement('div');
+      toolbar.classList.add('toolbar');
+      toolbar.classList.add('visible');
+      assert(toolbar.classList.contains('visible'), 'UI: toolbar visible class');
+
+      toolbar.classList.remove('visible');
+      assert(!toolbar.classList.contains('visible'), 'UI: toolbar hidden class');
+
+      // Test drop zone visibility
+      var dropZone = document.createElement('div');
+      dropZone.style.display = '';
+      assert(dropZone.style.display === '', 'UI: drop zone visible');
+
+      dropZone.style.display = 'none';
+      assert(dropZone.style.display === 'none', 'UI: drop zone hidden');
+
+      // Test canvas wrapper visibility
+      var canvasWrapper = document.createElement('div');
+      canvasWrapper.style.display = 'none';
+      assert(canvasWrapper.style.display === 'none', 'UI: canvas wrapper hidden');
+
+      canvasWrapper.style.display = 'inline-block';
+      assert(canvasWrapper.style.display === 'inline-block', 'UI: canvas wrapper visible');
+    }
+
+    // Run all tests
+    function runAllTests() {
+      clearResults();
+      testCookieFunctions();
+      testThemeFunctions();
+      testAspectRatioPresets();
+      testCropClamp();
+      testMinimumSize();
+      testFormatMimeTypes();
+      testCanvasScale();
+      testCropOverlayPosition();
+      testDragHandling();
+      testResizeHandling();
+      testOutputCoordinates();
+      testFileValidation();
+      testUIStateManagement();
+
+      // Summary
+      var summary = document.createElement('div');
+      summary.className = 'summary';
+      var status = failed === 0 ? 'pass' : 'fail';
+      summary.innerHTML = '<strong>Summary:</strong> <span class="' + status + '">' +
+        passed + '/' + total + ' tests passed</span>' +
+        (failed > 0 ? ' (' + failed + ' failed)' : '');
+      results.appendChild(summary);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "image-cropper-tests",
+  "version": "1.0.0",
+  "description": "Unit tests for Image Cropper",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
